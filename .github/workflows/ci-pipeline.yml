@@ -18,7 +18,7 @@ jobs:
         echo "Memeriksa bug dan kerapihan kode..."
         echo "Scan Selesai: Kodingan Rapih!"
 
-- name: Menjalankan Scan Celah Keamanan Nexus
+    - name: Menjalankan Scan Celah Keamanan Nexus
       run: |
         echo "=== MEMULAI NEXUS / SNYK VULNERABILITY SCAN ==="
         echo "Mengecek apakah ada library berbahaya..."
