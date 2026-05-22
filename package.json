@@ -1,0 +1,12 @@
+{
+  "name": "belajar-devops-asli",
+  "version": "1.0.0",
+  "description": "Proyek nyata untuk tes pipeline",
+  "main": "index.js",
+  "scripts": {
+    "lint": "echo 'Menjalankan fungsi cek kualitas...'"
+  },
+  "dependencies": {
+    "axios": "0.21.1"
+  }
+}

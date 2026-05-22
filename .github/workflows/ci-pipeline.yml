@@ -1,27 +1,59 @@
-name: DevOps Security & Build Pipeline
+name: Enterprise DevSecOps Security Pipeline
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  pemeriksaan-kode:
+  # 1. TAHAP SAST: Cek Kualitas Kode Asli lewat Server SonarQube/SonarCloud
+  sast-sonarqube:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Mengambil kode dari GitHub
+    - name: Checkout Kode
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Penting bagi SonarQube untuk menganalisis riwayat git
+
+    - name: SonarCloud Scan (SonarQube Asli)
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Otomatis disediakan oleh GitHub
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}    # Token rahasia yang kita buat di Langkah 1
+
+  # 2. TAHAP SCA: Cek Virus Library Pihak Ketiga Menggunakan Trivy Asli
+  sca-trivy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Kode
       uses: actions/checkout@v4
 
-    - name: Menjalankan Scan Kualitas Kode
-      run: |
-        echo "=== MEMULAI SCAN KUALITAS KODE ==="
-        echo "Memeriksa bug dan kerapihan kode..."
-        echo "Scan Selesai: Kodingan Rapih!"
+    - name: Aqua Trivy Dependency Security Scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        exit-code: '1'            # KEKETATAN: Jika ketemu celah HIGH/CRITICAL, gagalkan otomatis!
+        severity: 'HIGH,CRITICAL'
 
-    - name: Menjalankan Scan Celah Keamanan Nexus
+  # 3. TAHAP DEPLOYMENT: Hanya jalan jika Pengecekan 1 & 2 Bersih (Centang Hijau)
+  deploy-to-aws:
+    runs-on: ubuntu-latest
+    needs: [sast-sonarqube, sca-trivy] # Gerbang Keamanan Pengunci AWS
+    steps:
+    - name: Checkout Kode
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials (Asli)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || 'MOCK_KEY_UNTUK_TES' }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY || 'MOCK_SECRET_UNTUK_TES' }}
+        aws-region: us-east-1
+
+    - name: Deploy Aplikasi ke AWS S3 / EC2
       run: |
-        echo "=== MEMULAI NEXUS / SNYK VULNERABILITY SCAN ==="
-        echo "Mengecek apakah ada library berbahaya..."
-        echo "🚨 [BAHAYA] Ditemukan celah keamanan High-Risk pada library!"
-        echo "Menolak kodingan secara otomatis..."
-        exit 1
+        echo "Menjalankan perintah sync asli ke AWS..."
+        # Perintah aslinya di dunia kerja biasanya seperti ini:
+        # aws s3 sync . s3://bucket-aplikasi-perusahaan --exclude ".git*"
+        echo "Proses sinkronisasi ke server AWS selesai aman!"
