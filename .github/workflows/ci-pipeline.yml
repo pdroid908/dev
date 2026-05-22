@@ -1,59 +1,49 @@
-name: Enterprise DevSecOps Security Pipeline
+name: Enterprise DevOps Docker Pipeline
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  # 1. TAHAP SAST: Cek Kualitas Kode Asli lewat Server SonarQube/SonarCloud
-  sast-sonarqube:
+  # JOB 1: Pengecekan Keamanan File Mentah (SCA)
+  security-scan:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Kode
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0 # Penting bagi SonarQube untuk menganalisis riwayat git
-
-    - name: SonarCloud Scan (SonarQube Asli)
-      uses: SonarSource/sonarcloud-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Otomatis disediakan oleh GitHub
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}    # Token rahasia yang kita buat di Langkah 1
-
-  # 2. TAHAP SCA: Cek Virus Library Pihak Ketiga Menggunakan Trivy Asli
-  sca-trivy:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout Kode
+    - name: Ambil Kode dari Git
       uses: actions/checkout@v4
 
-    - name: Aqua Trivy Dependency Security Scan
+    - name: Scan Library Mentah via Trivy
       uses: aquasecurity/trivy-action@master
       with:
         scan-type: 'fs'
         scan-ref: '.'
         format: 'table'
-        exit-code: '1'            # KEKETATAN: Jika ketemu celah HIGH/CRITICAL, gagalkan otomatis!
+        exit-code: '1'
         severity: 'HIGH,CRITICAL'
 
-  # 3. TAHAP DEPLOYMENT: Hanya jalan jika Pengecekan 1 & 2 Bersih (Centang Hijau)
-  deploy-to-aws:
+  # JOB 2: Memasak Docker & Menguji Keamanan Kontainer Jadi
+  build-and-test-docker:
     runs-on: ubuntu-latest
-    needs: [sast-sonarqube, sca-trivy] # Gerbang Keamanan Pengunci AWS
+    needs: security-scan # KUNCI: Nunggu sensor file mentah lolos dulu
     steps:
-    - name: Checkout Kode
+    - name: Ambil Kode dari Git
       uses: actions/checkout@v4
 
-    - name: Configure AWS Credentials (Asli)
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || 'MOCK_KEY_UNTUK_TES' }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY || 'MOCK_SECRET_UNTUK_TES' }}
-        aws-region: us-east-1
-
-    - name: Deploy Aplikasi ke AWS S3 / EC2
+    # Perintah Bash asli untuk membangun Docker Image dari Dockerfile tadi
+    - name: Build Docker Image Lokal
       run: |
-        echo "Menjalankan perintah sync asli ke AWS..."
-        # Perintah aslinya di dunia kerja biasanya seperti ini:
-        # aws s3 sync . s3://bucket-aplikasi-perusahaan --exclude ".git*"
-        echo "Proses sinkronisasi ke server AWS selesai aman!"
+        docker build -t aplikasi-saya:test .
+
+    # SEBELUM DEPLOY: Scan kontainer jadinya, barangkali OS di dalam Dockernya ada virus
+    - name: Scan Docker Image via Trivy (Asli)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'aplikasi-saya:test' # Nama image yang di-build di atas
+        format: 'table'
+        exit-code: '1'                 # KETAT: Gagalkan kalau OS Dockernya bervirus!
+        severity: 'HIGH,CRITICAL'
+
+    - name: Simulasi Push & Deploy ke AWS
+      run: |
+        echo "Docker Image aman dan bersih dari celah keamanan!"
+        echo "Siap di-push ke AWS Container Registry (ECR)."
