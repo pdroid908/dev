@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # 1. KONTAINER UTAMA: Aplikasi Backend kita
+  backend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000" # Menghubungkan port 3000 laptop ke port 3000 di dalam Docker
+    volumes:
+      - .:/app # Hot-reload: Kalau developer ngoding, perubahan langsung masuk Docker tanpa build ulang
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=database-postgres # Memanggil kontainer database di bawah lewat nama servicenya
+    depends_on:
+      - database-postgres # KUNCI: Backend baru boleh nyala SETELAH databasenya siap!
+
+  # 2. KONTAINER TAMBAHAN: Database PostgreSQL asli dari internet
+  database-postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=rahasia_perusahaan
+      - POSTGRES_DB=belajar_devops
